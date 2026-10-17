@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.1.0"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.1.0",
+			"CompanyName": "CardAtlas",
+			"FileDescription": "相机素材分析与归档",
+			"LegalCopyright": "2026 CardAtlas",
+			"ProductName": "CardAtlas",
+			"Comments": "照片与视频本地归档"
+		}
+	}
+}

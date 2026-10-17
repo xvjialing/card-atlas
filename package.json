@@ -1,0 +1,10 @@
+{
+  "name": "card-atlas-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "sh ./scripts/wails.sh task dev",
+    "build": "sh ./scripts/wails.sh build",
+    "package": "sh ./scripts/wails.sh package"
+  }
+}

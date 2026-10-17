@@ -1,0 +1,76 @@
+# Node.js 依赖、前端构建与缓存
+node_modules/
+/frontend/dist/
+.vite/
+.vite-temp/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Wails 可执行文件、应用包、本地 CLI 与任务缓存
+/bin/
+/.tools/
+/.task/
+
+# Go 测试与覆盖率输出、Windows 临时资源对象
+*.test
+*.test.exe
+*.prof
+/coverage/
+/coverage.out
+/coverage.html
+/wails_windows_*.syso
+
+# 本地验证素材、导出结果、截图与历史构建
+/work/
+
+# 平台构建配置位于 build/，仅忽略其中的生成内容
+/build/windows/nsis/*.exe
+/build/linux/cardatlas.desktop
+/build/linux/appimage/cardatlas
+/build/linux/appimage/cardatlas.png
+/build/linux/appimage/build/
+/build/linux/appimage/*.AppDir/
+/build/linux/appimage/*.AppImage
+/build/android/.gradle/
+/build/android/.kotlin/
+/build/android/.cxx/
+/build/android/build/
+/build/android/app/build/
+/build/android/app/.cxx/
+/build/android/app/src/main/jniLibs/
+/build/android/local.properties
+/build/android/overlay.json
+/build/android/gen/
+/build/ios/xcode/
+/build/ios/DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# 本地环境变量与签名材料；环境配置示例可提交
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.template
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+
+# IDE 配置与编辑器临时文件
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 操作系统生成文件
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini

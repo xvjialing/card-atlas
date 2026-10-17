@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=CardAtlas
+Comment=相机素材分析与归档
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/cardatlas %u
+Terminal=false
+Type=Application
+Icon=cardatlas
+Categories=Utility;
+StartupWMClass=cardatlas
+
+ 
