@@ -5,6 +5,16 @@
   "scripts": {
     "dev": "sh ./scripts/wails.sh task dev",
     "build": "sh ./scripts/wails.sh build",
-    "package": "sh ./scripts/wails.sh package"
+    "package": "sh ./scripts/wails.sh package",
+    "preinstall": "node scripts/check-package-manager.mjs",
+    "dev:frontend": "pnpm --dir frontend run dev",
+    "build:frontend": "pnpm --dir frontend run build",
+    "typecheck": "pnpm --dir frontend run typecheck",
+    "test": "pnpm --dir frontend test"
+  },
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=22.13.0",
+    "pnpm": "12.15.0"
   }
 }

@@ -26,5 +26,16 @@
 	<string>2026 CardAtlas</string>
 	<key>LSUIElement</key>
 	<false/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>通过蓝牙发现并配对摄影设备，以建立素材导入连接。</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>访问你连接的摄影设备，浏览并导入原始照片和视频。</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>用于读取附近热点名称和识别设备 Wi-Fi，不采集或上传位置。</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

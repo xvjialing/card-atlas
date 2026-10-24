@@ -1,0 +1,13 @@
+packages:
+  - frontend
+
+# 保留原项目的七天发布缓冲，不在迁移包管理器时升级业务依赖。
+minimumReleaseAge: 10080
+
+# 使用 pnpm 默认的用户级内容仓库，按平台选择写时复制或硬链接。
+# 不在工程内设置 storeDir，避免每个项目各存一份包内容。
+packageImportMethod: auto
+
+# fsevents 已随包提供预编译模块，无需额外执行编译脚本。
+allowBuilds:
+  fsevents: false

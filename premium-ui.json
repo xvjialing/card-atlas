@@ -1,8 +1,23 @@
 {
- "profile":"product-admin",
- "sourceRoots":["frontend/src"],
- "canonicalMap":"UX-CONTRACT.md",
- "requiredCapabilities":["Table Selection","Select/Listbox","Date","Form","Scrollbar","Toast"],
- "ownership":{"Select/Listbox":"authored","Date":"native"},
- "commands":{"typecheck":"cd frontend && npm run typecheck","build":"cd frontend && npm run build","test":"go test -race ./..."}
+  "profile": "product-admin",
+  "sourceRoots": ["frontend/src"],
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": [
+    "Table Selection",
+    "Select/Listbox",
+    "Date",
+    "Form",
+    "Scrollbar",
+    "Toast"
+  ],
+  "ownership": {
+    "Select/Listbox": "authored",
+    "Date": "native"
+  },
+  "commands": {
+    "typecheck": "pnpm typecheck",
+    "build": "pnpm build:frontend",
+    "test": "go test -race ./...",
+    "frontend-test": "pnpm test"
+  }
 }

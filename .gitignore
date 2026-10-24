@@ -25,6 +25,7 @@ pnpm-debug.log*
 
 # 本地验证素材、导出结果、截图与历史构建
 /work/
+/.playwright-mcp/
 
 # 平台构建配置位于 build/，仅忽略其中的生成内容
 /build/windows/nsis/*.exe

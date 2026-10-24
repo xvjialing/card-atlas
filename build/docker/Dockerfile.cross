@@ -16,6 +16,9 @@
 # Debian 13 provides the GTK >= 4.14 API baseline used by the default Linux backend.
 FROM golang:1.26-trixie
 
+# pnpm 12 的安装器和本项目 Vite 使用 Node 24。
+COPY --from=node:24-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+
 ARG TARGETARCH
 ARG GARBLE_VERSION=v0.16.0
 
@@ -29,6 +32,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pkg-config --exists gtk+-3.0 \
     && pkg-config --exists webkit2gtk-4.1 \
     && rm -rf /var/lib/apt/lists/*
+
+# 与根 package.json 的 packageManager 保持同一版本；npm 仅用于安装 pnpm 本身。
+RUN npm install --global pnpm@12.15.0 && npm cache clean --force
 
 RUN go install mvdan.cc/garble@${GARBLE_VERSION}
 
@@ -190,7 +196,8 @@ export CGO_CFLAGS="-w"
 
 # Build frontend if exists and not already built (host may have built it)
 if [ -d "frontend" ] && [ -f "frontend/package.json" ] && [ ! -d "frontend/dist" ]; then
-    (cd frontend && npm install --silent && npm run build --silent)
+    pnpm install --frozen-lockfile
+    pnpm --dir frontend run build
 fi
 
 # Build

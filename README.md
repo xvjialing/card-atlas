@@ -6,6 +6,12 @@
 
 ## 已实现
 
+- 通用“设备导入”入口，首个无线适配器为 macOS DJI Osmo Action 6（待实机验证）。
+- 蓝牙配对、真实热点选择、钥匙串密码和手动 Wi-Fi 接续，内置存储与 SD 卡素材浏览、筛选和预览。
+- 设备素材支持列表、网格、时间线，按天跨页选择，直接切换机身/存储卡及图片/视频筛选；导入进度与记录在独立任务弹窗中展示。
+- 日期归档或保留设备目录；持久化导入记录、暂停续传、批量恢复、重试、重名保护和本地 SHA-256 指纹。
+- 设备协议与通用导入队列分层。产品流程、架构及限制见 [设备素材导入](docs/device-import.md)。
+
 - 原生文件夹选择，也可粘贴路径；递归扫描，后台任务可取消。
 - 照片、视频数量、容量与拍摄日期分布；时间图可点击筛选。
 - 日期闭区间、类型、文件名/路径搜索、日期/大小/名称排序、30 条分页。
@@ -20,7 +26,7 @@
 
 ## 技术版本
 
-Wails Go 库与前端 runtime 固定为 `v3.0.0-beta.29`（2026-10-14 经 Go module `@latest` 查询，V3 仍为 Beta）。React / React DOM `19.3.0`，Tailwind CSS `4.3.3`，Vite `8.3.4`。shadcn/ui 通过 CLI 生成，使用 Radix `1.8.1`；具体版本以 `frontend/package-lock.json` 为准。
+Wails Go 库与前端 runtime 固定为 `v3.0.0-beta.29`（2026-10-14 经 Go module `@latest` 查询，V3 仍为 Beta）。React / React DOM `19.3.0`，Tailwind CSS `4.3.3`，Vite `8.3.4`。shadcn/ui 通过 CLI 生成，使用 Radix `1.8.1`；具体版本以根目录的 `pnpm-lock.yaml` 为准。
 
 ## 直接运行 macOS 应用
 
@@ -34,36 +40,49 @@ open /Users/xvjialing/projects/card-atlas/bin/cardatlas.app
 
 应用图标会在调试与打包时自动从同一原图生成，不需要手动拷贝。原图、1024px 主图和生成提示词保留在 `assets/brand/`，导出脚本为 `scripts/brand/main.go`。调试版和正式版使用独立的 macOS bundle identifier，图标设计保持一致。图标显示在底部 Dock；替换应用包后需退出当前实例再启动。
 
-环境：Go 1.25+，Node 22.12+（建议 24），npm，平台原生工具链。macOS 需要 Xcode Command Line Tools；其他系统依赖见 [Wails 安装说明](https://v3.wails.io/quick-start/installation/)。
+环境：Go 1.27+，Node 22.13+（建议 24），pnpm 12.15.0，平台原生工具链。macOS 需要 Xcode Command Line Tools；其他系统依赖见 [Wails 安装说明](https://v3.wails.io/quick-start/installation/)。
 
 ```sh
 cd /Users/xvjialing/projects/card-atlas
 
+# 启用项目声明的 pnpm 版本并按锁文件安装工作区
+corepack enable pnpm
+pnpm install --frozen-lockfile
+
 # 开发运行（原生客户端，支持热更新）
-npm run dev
+pnpm dev
 
 # 打包本机桌面应用
-npm run package
+pnpm package
 ```
 
-以上命令均在项目根目录执行，无需手动进入 `frontend` 或提前安装前端依赖。命令会自动准备前端依赖，并将正确版本的 Wails CLI 安装到工程 `.tools/`。首次运行需联网下载依赖；开发启动后通过 Wails 原生窗口使用真实文件功能。macOS 打包产物为 `bin/cardatlas.app`。
+以上命令均在项目根目录执行，无需手动进入 `frontend`。根 `package.json` 的 `packageManager` 固定 pnpm 版本；Wails 开发与打包任务使用 `pnpm install --frozen-lockfile` 检查整个工作区依赖，并将正确版本的 Wails CLI 安装到工程 `.tools/`。首次运行需联网下载依赖；开发启动后通过 Wails 原生窗口使用真实文件功能。macOS 打包产物为 `bin/cardatlas.app`。
 
 其他常用命令：
 
 ```sh
 # 构建本机可执行程序
-npm run build
+pnpm build
 
 # 后端测试（包含竞态检测）
 go test -race ./...
 
-# 前端类型与生产构建
-cd frontend
-npm run typecheck
-npm run build
+# 前端类型、单元测试与生产资源构建
+pnpm typecheck
+pnpm test
+pnpm build:frontend
 ```
 
-浏览器界面预览：`cd frontend && npm run dev`，访问 `http://127.0.0.1:9245/?demo=1`。本地文件扫描与导出需要桌面客户端。
+浏览器界面预览：`pnpm dev:frontend`，访问 `http://127.0.0.1:9245/?demo=1`。本地文件扫描与导出需要桌面客户端。
+
+## 依赖管理与磁盘复用
+
+- 根目录 `pnpm-workspace.yaml` 管理根包和 `frontend`，统一使用根 `pnpm-lock.yaml`；不再提交 npm/yarn 锁文件。
+- 从既有 npm 锁文件导入依赖版本，不借迁移升级 React、Vite 或其他业务依赖。保留七天发布缓冲，依赖构建脚本按工作区配置显式处理。
+- 使用 pnpm 默认用户级内容仓库；macOS 通常位于 `~/Library/pnpm/store`。同卷安装使用写时复制或硬链接复用包内容，项目内的链接目录仍可能被 `du` 计入完整文件大小，因此目录大小不等于新增物理磁盘占用。
+- 不在工程内另设 store，也不使用 `node-linker=hoisted` 退回 npm 式平铺复制。受限代理环境若无法写共享仓库，需要授权访问仓库后再安装，避免 pnpm 退回 `node_modules/.pnpm-store`。
+- 日常新增依赖：`pnpm --dir frontend add 包名`；开发依赖加 `-D`。恢复依赖：在根目录运行 `pnpm install --frozen-lockfile`。
+- 根目录与前端的安装检查会拒绝 npm/yarn 或不匹配的 pnpm 版本。更新 pnpm 时同步根版本声明与 Docker 交叉编译镜像中的安装版本。
 
 ## 日期与格式
 
@@ -73,7 +92,7 @@ npm run build
 
 ## 行为与边界
 
-- 相机需以目录或磁盘方式挂载。仅提供 MTP/PTP 的设备需要先通过系统工具导入到本地。
+- Action 6 无线导入使用“设备导入”。其他设备可使用已挂载目录；仅提供 MTP/PTP 的设备暂需先通过系统工具导入到本地。
 - 不跟随扫描中的符号链接；隐藏文件夹、隐藏文件、非媒体文件会跳过。无权限文件显示警告。
 - 输入与输出目录不能相同、互相包含，避免再次扫描已导出的文件。
 - 取消导出保留已完成文件并清理当前不完整文件。强制退出、断电或设备拔出无法保证清理当前文件，需检查结果。

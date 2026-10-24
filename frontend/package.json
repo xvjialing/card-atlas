@@ -9,7 +9,9 @@
     "build:dev": "tsc && vite build --mode development",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "format": "prettier --write src"
+    "format": "prettier --write src",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "preinstall": "node ../scripts/check-package-manager.mjs"
   },
   "dependencies": {
     "@wailsio/runtime": "3.0.0-beta.29",
@@ -31,5 +33,8 @@
     "vite": "8.3.4",
     "prettier": "3.9.10",
     "@types/node": "26.6.5"
+  },
+  "engines": {
+    "node": ">=22.13.0"
   }
 }

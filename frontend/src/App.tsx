@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api, isDesktop } from "@/lib/api";
+import { DeviceImportPage } from "@/components/device-import-page";
 import { MediaThumbnail } from "@/components/media-thumbnail";
 import { ExportTaskDialog } from "@/components/export-task-dialog";
 import { exportProgress, exportTitle } from "@/lib/jobs";
@@ -89,7 +90,10 @@ export default function App() {
   const [result, setResult] = useState<FilePage>(noFiles);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [plan, setPlan] = useState<Plan | null>(null);
-  const [view, setView] = useState<"library" | "history" | "help">("library");
+  const [view, setView] = useState<"library" | "devices" | "history" | "help">(
+    "library",
+  );
+  const [devicePending, setDevicePending] = useState(0);
   const [history, setHistory] = useState<Job[]>([]);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -457,6 +461,22 @@ export default function App() {
             <span className="nav-dot" />
           </button>
           <button
+            className={`nav-item ${view === "devices" ? "active" : ""}`}
+            onClick={() => setView("devices")}
+            aria-current={view === "devices" ? "page" : undefined}
+          >
+            <Camera size={19} />
+            设备导入
+            {devicePending > 0 && (
+              <span
+                className="nav-count"
+                aria-label={`${devicePending} 项导入中`}
+              >
+                {devicePending}
+              </span>
+            )}
+          </button>
+          <button
             className={`nav-item ${view === "history" ? "active" : ""}`}
             onClick={showHistory}
             aria-current={view === "history" ? "page" : undefined}
@@ -500,9 +520,11 @@ export default function App() {
             <ChevronRight size={14} />
             {view === "library"
               ? "素材分析"
-              : view === "history"
-                ? "导出记录"
-                : "使用说明"}
+              : view === "devices"
+                ? "设备导入"
+                : view === "history"
+                  ? "导出记录"
+                  : "使用说明"}
           </span>
           <div className="topbar-actions">
             {demo ? (
@@ -527,16 +549,20 @@ export default function App() {
               <h1>
                 {view === "library"
                   ? "从一张存储卡，到井然有序。"
-                  : view === "history"
-                    ? "每一次归档，都有迹可循。"
-                    : "开始整理你的影像。"}
+                  : view === "devices"
+                    ? "从设备到资料库，每一帧都妥善保存。"
+                    : view === "history"
+                      ? "每一次归档，都有迹可循。"
+                      : "开始整理你的影像。"}
               </h1>
               <p>
                 {view === "library"
                   ? "分析你的相机素材，找到需要的片段，轻松归档。"
-                  : view === "history"
-                    ? "查看本次运行中的导出结果与失败明细。"
-                    : "选择、筛选、导出。三步完成照片与视频整理。"}
+                  : view === "devices"
+                    ? "连接摄影设备，挑选原始素材，按你的拍摄习惯归档。"
+                    : view === "history"
+                      ? "查看本次运行中的导出结果与失败明细。"
+                      : "选择、筛选、导出。三步完成照片与视频整理。"}
               </p>
             </div>
             <span className="heading-icon">
@@ -584,12 +610,33 @@ export default function App() {
               </Button>
             </div>
           )}
-          <div className="sr-only" aria-live="polite">
+          <div
+            className="sr-only"
+            aria-live={view === "library" ? "polite" : "off"}
+          >
             {loading
               ? "正在加载素材列表"
               : `找到 ${result.total} 个素材，已选择 ${selected.size} 个`}
           </div>
 
+          <div hidden={view !== "devices"}>
+            <DeviceImportPage
+              demo={demo}
+              onPending={setDevicePending}
+              onLocal={() => setView("library")}
+              onAnalyze={(path) => {
+                setView("library");
+                setSource(path);
+                void run(async () => {
+                  if (busy)
+                    throw new Error(
+                      "请等待当前本地扫描或导出完成后再分析导入目录",
+                    );
+                  setJob(await api.scan(path));
+                });
+              }}
+            />
+          </div>
           {view === "library" ? (
             <>
               <section className="source-panel" aria-labelledby="source-title">
@@ -1338,12 +1385,12 @@ export default function App() {
                 </div>
               )}
             </section>
-          ) : (
+          ) : view === "help" ? (
             <section className="help-panel">
               {[
                 {
-                  title: "连接并分析素材",
-                  text: "将存储卡插入读卡器，或将相机机内存储挂载为本地磁盘。点击“选择分析文件夹”，也可输入路径后点击重新分析。支持递归扫描子文件夹。相机仅提供 MTP/PTP 时，需要先使用系统工具复制到本地。",
+                  title: "连接设备或分析本地素材",
+                  text: "Action 6 可通过“设备导入”完成蓝牙配对、Wi-Fi 连接和原片导入。其他设备可将存储卡插入读卡器，或将相机机内存储挂载为本地磁盘。点击“选择分析文件夹”，也可输入路径后点击重新分析。支持递归扫描子文件夹。相机仅提供 MTP/PTP 时，需要先使用系统工具复制到本地。",
                   icon: HardDrive,
                 },
                 {
@@ -1379,7 +1426,7 @@ export default function App() {
                 </p>
               </div>
             </section>
-          )}
+          ) : null}
           <footer className="workspace-footer">
             <span>
               CardAtlas<span> / </span>让记忆有序，让创作继续。
