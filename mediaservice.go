@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cardatlas/internal/diagnostics"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -88,6 +89,7 @@ type ExportPlan struct {
 }
 
 type MediaService struct {
+	logs       *diagnostics.Store
 	app        *application.App
 	mu         sync.RWMutex
 	files      []MediaFile
@@ -151,6 +153,7 @@ func canonicalDirectory(path string) (string, error) {
 func (s *MediaService) StartScan(path string) (JobStatus, error) {
 	root, err := canonicalDirectory(path)
 	if err != nil {
+		logOperationResult(s.logs, "scan", "scan.start_failed", "无法开始本地素材扫描", err, nil)
 		return JobStatus{}, err
 	}
 	s.mu.Lock()
@@ -163,6 +166,7 @@ func (s *MediaService) StartScan(path string) (JobStatus, error) {
 	s.job = JobStatus{ID: time.Now().UnixNano(), Kind: "scan", State: "running", Errors: []string{}}
 	j := s.job
 	s.mu.Unlock()
+	s.logs.Record("info", "scan", "scan.started", "开始扫描本地素材", jobLogFields(j))
 	go s.scan(ctx, root)
 	return j, nil
 }
@@ -269,15 +273,18 @@ func (s *MediaService) scan(ctx context.Context, root string) {
 	s.cancel = nil
 	if errors.Is(err, context.Canceled) {
 		s.job.State = "cancelled"
+		s.logs.Record("info", "scan", "scan.cancelled", "本地素材扫描已取消", jobLogFields(s.job))
 		return
 	}
 	if err != nil {
 		s.job.State = "failed"
 		s.job.Errors = append(s.job.Errors, err.Error())
+		logOperationResult(s.logs, "scan", "scan.failed", "本地素材扫描失败", err, jobLogFields(s.job))
 		return
 	}
 	s.files, s.summary = files, summary
 	s.job.State = "completed"
+	s.logs.Record("info", "scan", "scan.completed", "本地素材扫描完成", map[string]string{"files": fmt.Sprint(summary.Count), "warnings": fmt.Sprint(len(summary.Warnings)), "bytes": fmt.Sprint(summary.Bytes)})
 }
 
 func matches(f MediaFile, q Filter) bool {
@@ -386,6 +393,7 @@ func overlaps(a, b string) bool {
 func (s *MediaService) StartExport(destination string, ids []string) (JobStatus, error) {
 	dest, err := canonicalDirectory(destination)
 	if err != nil {
+		logOperationResult(s.logs, "export", "export.start_failed", "无法开始本地素材导出", err, nil)
 		return JobStatus{}, err
 	}
 	s.mu.Lock()
@@ -407,6 +415,7 @@ func (s *MediaService) StartExport(destination string, ids []string) (JobStatus,
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	s.job = JobStatus{ID: time.Now().UnixNano(), Kind: "export", State: "running", Phase: "preparing", Total: len(files), TotalBytes: totalBytes, TotalWork: totalBytes * 2, StartedAt: time.Now().UnixMilli(), Destination: dest, Errors: []string{}}
+	s.logs.Record("info", "export", "export.started", "开始导出本地素材", jobLogFields(s.job))
 	go s.export(ctx, s.summary.Path, dest, files)
 	return cloneJob(s.job), nil
 }
@@ -470,6 +479,7 @@ func (s *MediaService) export(ctx context.Context, source, destination string, f
 		s.job.WorkDone = workBefore + f.Size*2
 		if err != nil {
 			s.job.Failed++
+			logOperationResult(s.logs, "export", "export.file_failed", "一个素材导出失败", err, map[string]string{"job_id": fmt.Sprint(s.job.ID)})
 			if len(s.job.Errors) < 100 {
 				s.job.Errors = append(s.job.Errors, f.RelativePath+"："+err.Error())
 			}
@@ -492,6 +502,15 @@ func (s *MediaService) finishExport(state string, err error) {
 	if err != nil {
 		s.job.Errors = append(s.job.Errors, err.Error())
 	}
+	level := "info"
+	if state == "failed" || s.job.Failed > 0 {
+		level = "error"
+	}
+	fields := jobLogFields(s.job)
+	if err != nil {
+		fields["error"] = err.Error()
+	}
+	s.logs.Record(level, "export", "export.finished", "本地素材导出已结束", fields)
 	s.history = append([]JobStatus{cloneJob(s.job)}, s.history...)
 	if len(s.history) > 20 {
 		s.history = s.history[:20]

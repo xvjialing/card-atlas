@@ -1501,12 +1501,15 @@ tbody tr:hover {
     display: none;
   }
   .sidebar nav {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-top: 15px;
-    gap: 8px;
+    gap: 4px;
   }
   .nav-item {
-    padding: 10px 12px;
+    padding: 8px 6px;
+    min-height: 40px;
+    white-space: nowrap;
     font-size: 12px;
     gap: 6px;
     flex: 1;
@@ -2054,6 +2057,42 @@ tbody tr:hover {
   padding-top: 12px;
   font-size: 11px;
   color: var(--muted-foreground);
+}
+.device-provider-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.device-provider {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.device-provider strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.device-provider small {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.device-provider:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+.device-provider.active {
+  border-color: var(--primary);
+  background: var(--accent);
+}
+.device-provider:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .device-welcome {
   display: grid;
@@ -2958,5 +2997,377 @@ tbody tr:hover {
   .device-source-identity h2 {
     font-size: 17px;
     overflow-wrap: anywhere;
+  }
+}
+
+/* 离线诊断沿用工作台的语义色、控件和滚动条。 */
+.diagnostics-page {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.diagnostic-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+.diagnostic-status-icon {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--primary);
+  border-radius: 12px;
+}
+.diagnostic-status-icon.error {
+  color: var(--destructive);
+}
+.diagnostic-recording {
+  flex: 1;
+}
+.diagnostic-recording strong {
+  font-size: 15px;
+}
+.diagnostic-recording p,
+.diagnostic-storage small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.diagnostic-storage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.diagnostic-storage small {
+  display: block;
+}
+.diagnostic-feedback:empty {
+  display: none;
+}
+.diagnostic-feedback .message {
+  margin: 0;
+}
+.diagnostic-feedback {
+  display: grid;
+  gap: 10px;
+}
+.diagnostic-feedback .message > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.diagnostic-export-path {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.diagnostic-controls {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+.diagnostic-search {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  position: relative;
+}
+.diagnostic-search > svg {
+  position: absolute;
+  left: 12px;
+  color: var(--muted-foreground);
+}
+.diagnostic-search input {
+  padding-left: 37px;
+  padding-right: 40px;
+  height: 38px;
+}
+.diagnostic-search button {
+  position: absolute;
+  right: 2px;
+}
+.diagnostic-select {
+  width: 142px;
+}
+.diagnostic-select > label,
+.diagnostic-settings label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.diagnostic-select [data-slot="select-trigger"] {
+  width: 100%;
+  height: 38px;
+}
+.diagnostic-log-panel {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  overflow: hidden;
+}
+.diagnostic-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.diagnostic-list-heading h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.diagnostic-list-heading > span,
+.diagnostic-list-footer > span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.diagnostic-scroll {
+  max-height: 560px;
+  min-height: 260px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+.diagnostic-empty {
+  display: flex;
+  min-height: 260px;
+  padding: 30px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+.diagnostic-empty h3 {
+  color: var(--foreground);
+  font-size: 15px;
+}
+.diagnostic-empty p {
+  font-size: 12px;
+}
+.diagnostic-entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.diagnostic-entry {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  gap: 18px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.diagnostic-entry:last-child {
+  border-bottom: 0;
+}
+.diagnostic-entry-time {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.diagnostic-entry-time time {
+  display: block;
+  margin-bottom: 8px;
+  white-space: nowrap;
+}
+.diagnostic-level {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  padding: 1px 7px;
+  font-size: 10px;
+  background: var(--secondary);
+  color: var(--foreground);
+}
+.diagnostic-level.error {
+  color: var(--destructive);
+  border-color: color-mix(in srgb, var(--destructive), transparent 75%);
+  background: color-mix(in srgb, var(--destructive), var(--card) 95%);
+}
+.diagnostic-level.warn {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--video), var(--card) 85%);
+}
+.diagnostic-level.debug {
+  color: var(--primary);
+  background: var(--accent);
+}
+.diagnostic-entry-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-bottom: 3px;
+}
+.diagnostic-current {
+  color: var(--primary);
+  font-size: 10px;
+}
+.diagnostic-entry-main > p {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.diagnostic-entry-main summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--primary);
+  margin-top: 6px;
+  border-radius: 3px;
+}
+.diagnostic-entry-main summary:hover {
+  text-decoration: underline;
+}
+.diagnostic-entry-main summary span {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.diagnostic-entry-main dl {
+  display: grid;
+  grid-template-columns: 105px minmax(0, 1fr);
+  gap: 7px 12px;
+  padding: 14px;
+  background: var(--secondary);
+  border-radius: 8px;
+  margin: 10px 0 0;
+  font-size: 11px;
+}
+.diagnostic-entry-main dt {
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+.diagnostic-entry-main dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.diagnostic-field {
+  display: contents;
+}
+.diagnostic-list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 55px;
+  padding: 10px 20px;
+  background: var(--secondary);
+  border-top: 1px solid var(--border);
+}
+.diagnostic-settings {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 2px;
+}
+.diagnostic-settings > div:first-child {
+  flex: 1;
+}
+.diagnostic-settings p {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.diagnostic-settings [data-slot="select-trigger"] {
+  width: 145px;
+}
+.diagnostic-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  padding: 0 2px;
+  max-width: 850px;
+}
+.diagnostic-note > svg {
+  margin-top: 1px;
+}
+@media (max-width: 1100px) {
+  .diagnostic-summary {
+    flex-wrap: wrap;
+  }
+  .diagnostic-storage {
+    margin-right: auto;
+  }
+  .diagnostic-recording {
+    min-width: 200px;
+  }
+}
+@media (max-width: 700px) {
+  .diagnostic-summary {
+    padding: 16px;
+    gap: 12px;
+  }
+  .diagnostic-recording {
+    min-width: 160px;
+  }
+  .diagnostic-storage {
+    width: 100%;
+  }
+  .diagnostic-controls {
+    flex-wrap: wrap;
+  }
+  .diagnostic-search {
+    flex-basis: 100%;
+  }
+  .diagnostic-select {
+    flex: 1;
+  }
+  .diagnostic-list-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 13px 15px;
+    gap: 3px;
+  }
+  .diagnostic-entry {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 15px;
+    gap: 6px;
+  }
+  .diagnostic-entry-time {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .diagnostic-entry-time time {
+    margin: 0;
+  }
+  .diagnostic-entry-main summary {
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+  .diagnostic-entry-main dl {
+    grid-template-columns: 78px minmax(0, 1fr);
+    padding: 10px;
+  }
+  .diagnostic-settings {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .diagnostic-settings > div:first-child {
+    flex-basis: 100%;
+  }
+  .diagnostic-list-footer {
+    flex-wrap: wrap;
+    padding: 12px 15px;
   }
 }

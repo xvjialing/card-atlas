@@ -24,6 +24,19 @@ type Bluetooth struct {
 }
 
 func (b *Bluetooth) Scan(ctx context.Context) ([]Device, error) {
+	return b.scanFiltered(ctx, func(name string, dji bool) bool {
+		return strings.Contains(name, "osmo") || dji
+	}, "DJI 相机")
+}
+
+// ScanAircraft 扫描 DJI 飞行器蓝牙：名称包含 DJI，或携带 DJI 厂商数据。
+func (b *Bluetooth) ScanAircraft(ctx context.Context) ([]Device, error) {
+	return b.scanFiltered(ctx, func(name string, dji bool) bool {
+		return dji || strings.Contains(name, "dji")
+	}, "DJI 无人机")
+}
+
+func (b *Bluetooth) scanFiltered(ctx context.Context, match func(name string, dji bool) bool, fallbackName string) ([]Device, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	a := bluetooth.DefaultAdapter
@@ -39,13 +52,14 @@ func (b *Bluetooth) Scan(ctx context.Context) ([]Device, error) {
 	done := make(chan error, 1)
 	go func() {
 		done <- a.Scan(func(_ *bluetooth.Adapter, r bluetooth.ScanResult) {
-			match := strings.Contains(strings.ToLower(r.LocalName()), "osmo")
+			name := strings.ToLower(r.LocalName())
+			var dji bool
 			for _, d := range r.ManufacturerData() {
 				if d.CompanyID == 0x08aa {
-					match = true
+					dji = true
 				}
 			}
-			if !match {
+			if !match(name, dji) {
 				return
 			}
 			guard.Lock()
@@ -55,11 +69,11 @@ func (b *Bluetooth) Scan(ctx context.Context) ([]Device, error) {
 				return
 			}
 			b.devices[id] = r
-			name := r.LocalName()
-			if name == "" {
-				name = "DJI 相机"
+			display := r.LocalName()
+			if display == "" {
+				display = fallbackName
 			}
-			items = append(items, Device{id, name, r.RSSI})
+			items = append(items, Device{id, display, r.RSSI})
 		})
 	}()
 	select {
@@ -107,7 +121,17 @@ func (s *BLESession) Close() {
 	_ = s.device.Disconnect()
 }
 
-func (b *Bluetooth) Pair(ctx context.Context, id, identity string, stage func(string)) (session *BLESession, ssid string, err error) {
+// Pair 以 Osmo 相机流程配对：确认动作是相机屏幕上的配对请求。
+func (b *Bluetooth) Pair(ctx context.Context, id, identity string, stage func(string)) (*BLESession, string, error) {
+	return b.pair(ctx, id, identity, stage, "请在相机屏幕上确认 OSMO 配对请求", "该设备未提供兼容的 Osmo 蓝牙服务", false)
+}
+
+// PairAircraft 以飞行器流程配对：确认动作是机身长按电源键约 3 秒（与 DJI Fly 手机快传首次授权一致）。
+func (b *Bluetooth) PairAircraft(ctx context.Context, id, identity string, stage func(string)) (*BLESession, string, error) {
+	return b.pair(ctx, id, identity, stage, "请在飞行器旁长按电源键约 3 秒完成授权，听到提示音即成功", "该设备未提供兼容的 DJI 蓝牙服务", true)
+}
+
+func (b *Bluetooth) pair(ctx context.Context, id, identity string, stage func(string), confirmStage, serviceError string, aircraft bool) (session *BLESession, ssid string, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	trace := diagnostics.From(ctx)
@@ -162,7 +186,7 @@ func (b *Bluetooth) Pair(ctx context.Context, id, identity string, stage func(st
 		}
 	}
 	if !haveControl || !haveData {
-		return nil, "", errors.New("该设备未提供兼容的 Osmo 蓝牙服务")
+		return nil, "", errors.New(serviceError)
 	}
 	trace.Log("debug", "bluetooth", "ble.characteristics_ready", "已找到相机控制与数据特征", nil)
 	inbox := make(chan Message, 128)
@@ -192,13 +216,18 @@ func (b *Bluetooth) Pair(ctx context.Context, id, identity string, stage func(st
 		return nil, "", err
 	}
 	time.Sleep(120 * time.Millisecond)
-	if err = s.send(Pairing(identity)); err != nil {
+	pairing := Pairing(identity)
+	if aircraft {
+		pairing = AircraftPairing(identity)
+	}
+	if err = s.send(pairing); err != nil {
 		return nil, "", err
 	}
-	stage("请在相机屏幕上确认 OSMO 配对请求")
+	stage(confirmStage)
 	approval := time.NewTimer(45 * time.Second)
 	defer approval.Stop()
 	paired := false
+	pairStatusCount := 0
 	answer := func(m Message) {
 		if m.Flags&0xc0 == 0x40 {
 			p := m.Payload
@@ -213,8 +242,17 @@ func (b *Bluetooth) Pair(ctx context.Context, id, identity string, stage func(st
 		case <-ctx.Done():
 			return nil, "", ctx.Err()
 		case <-approval.C:
-			return nil, "", errors.New("配对确认超时，请重新连接并在相机屏幕上确认")
+			return nil, "", errors.New("配对确认超时，请重新连接并完成机身授权")
 		case m := <-inbox:
+			// 仅记录配对状态前两字节，保留实际标志和长度；不将配对身份或凭据写入日志。
+			// 限制条数，避免异常设备持续推送状态导致诊断文件快速增长。
+			if m.Set == 7 && (m.ID == 0x45 || m.ID == 0x46) && pairStatusCount < 16 {
+				pairStatusCount++
+				trace.Log("info", "bluetooth", "ble.pair_status", "收到设备蓝牙配对状态", map[string]string{
+					"command": fmt.Sprintf("07/%02x", m.ID), "flags": fmt.Sprintf("%02x", m.Flags),
+					"status_prefix": fmt.Sprintf("%x", m.Payload[:min(2, len(m.Payload))]), "content_bytes": fmt.Sprint(len(m.Payload)),
+				})
+			}
 			answer(m)
 			if m.Set == 7 && m.ID == 0x45 && len(m.Payload) >= 2 && m.Payload[1] == 1 {
 				trace.Log("info", "bluetooth", "ble.pair_known", "相机认可已保存的配对标识", nil)

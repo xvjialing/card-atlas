@@ -118,6 +118,12 @@ export function DeviceImportPage({
     (t) => t.status === "queued" || t.status === "downloading",
   );
   const provider = state.providers.find((p) => p.id === state.activeProvider);
+  const sony = state.activeProvider === "sony-zve10";
+  const companion = sony
+    ? "Imaging Edge Mobile、Monitor+"
+    : state.activeProvider === "dji-mini5pro"
+      ? "DJI Fly"
+      : "DJI Mimo";
   const enabled = isDesktop && !demo && Boolean(provider?.available);
 
   useEffect(() => {
@@ -425,7 +431,7 @@ export function DeviceImportPage({
               disabled={!enabled || acting}
               onClick={() => setConnectionOpen(true)}
             >
-              <Bluetooth size={16} />
+              {sony ? <Wifi size={16} /> : <Bluetooth size={16} />}
               {connection.phase === "disconnected" ? "连接设备" : "继续连接"}
             </Button>
           )}
@@ -435,6 +441,35 @@ export function DeviceImportPage({
           <span>设备原片只读 · 导入后不删除</span>
         </div>
       </section>
+
+      {!connected && state.providers.length > 1 && (
+        <div
+          className="device-provider-row"
+          role="radiogroup"
+          aria-label="选择导入设备"
+        >
+          {state.providers.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="radio"
+              aria-checked={item.id === state.activeProvider}
+              className={
+                item.id === state.activeProvider
+                  ? "device-provider active"
+                  : "device-provider"
+              }
+              disabled={
+                !isDesktop || demo || acting || busy || pending.length > 0
+              }
+              onClick={() => void run(() => devicesAPI.selectProvider(item.id))}
+            >
+              <strong>{item.name}</strong>
+              <small>{item.transport}</small>
+            </button>
+          ))}
+        </div>
+      )}
 
       {!connected && media.length === 0 ? (
         <section className="device-welcome">
@@ -446,14 +481,20 @@ export function DeviceImportPage({
               让整理顺势开始。
             </h2>
             <p>
-              先连接设备，再按日期和存储位置挑选素材。原始画质、文件名和拍摄时间都值得保留。
+              {sony
+                ? "先在相机选择发送素材，再连接并归档。可导入的文件与画质取决于相机发送设置。"
+                : "先连接设备，再按日期和存储位置挑选素材。原始画质、文件名和拍摄时间都值得保留。"}
             </p>
             <ol className="device-workflow">
               <li>
                 <span>01</span>
                 <div>
                   <strong>连接你的设备</strong>
-                  <small>蓝牙配对，确认后加入相机热点</small>
+                  <small>
+                    {sony
+                      ? "相机选择发送素材，扫码或确认后加入热点"
+                      : "蓝牙配对，确认后加入设备热点"}
+                  </small>
                 </div>
               </li>
               <li>
@@ -478,16 +519,24 @@ export function DeviceImportPage({
               <h3>无线设备导入</h3>
             </div>
             <p>
-              本次支持 DJI Osmo Action 6。请保持设备开机，并先断开手机 DJI
-              Mimo。
+              当前选择 {provider?.name || "摄影设备"}
+              。请保持设备开机，并先退出手机上的 {companion}。
             </p>
             <div className="device-capability">
               <span>连接方式</span>
-              <strong>蓝牙 + Wi-Fi</strong>
+              <strong>{provider?.transport || "设备直连"}</strong>
               <span>素材来源</span>
-              <strong>内置存储 / SD 卡</strong>
+              <strong>
+                {(provider?.storages ?? [])
+                  .map((item) => item.name)
+                  .join(" / ") || "相机提供的存储"}
+              </strong>
               <span>素材类型</span>
-              <strong>照片 / DNG / 视频</strong>
+              <strong>
+                {sony
+                  ? "JPEG / RAW / 视频（以相机提供为准）"
+                  : "照片 / DNG / 视频"}
+              </strong>
             </div>
             <p className="device-footnote">
               加入相机热点时，电脑的 Wi-Fi 互联网连接可能暂时中断。
@@ -508,8 +557,7 @@ export function DeviceImportPage({
               </Button>
             </div>
             <p className="device-footnote">
-              DJI
-              无人机、索尼相机等无线适配将后续扩展；目前可通过已挂载存储导入。
+              兼容状态以设备上方标记为准。无线服务未提供的原始文件可通过存储卡导入。
             </p>
           </div>
         </section>
@@ -898,6 +946,7 @@ export function DeviceImportPage({
           setRevision((n) => n + 1);
         }}
         returnFocus={connectButton}
+        providerId={state.activeProvider}
       />
       <Dialog
         open={Boolean(plan)}
@@ -1047,7 +1096,8 @@ function DevicePreview({
 }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [file?.id]);
-  const raw = file?.name.toLowerCase().endsWith(".dng");
+  const rawFormat = file?.name.match(/\.(dng|arw)$/i)?.[1].toUpperCase();
+  const raw = Boolean(rawFormat);
   return (
     <Dialog
       open={Boolean(file)}
@@ -1081,7 +1131,7 @@ function DevicePreview({
             ) : (
               <img
                 src={deviceMediaURL(provider, file.id, !raw, session)}
-                alt={raw ? "DNG 相机缩略图" : file.name}
+                alt={raw ? `${rawFormat} 相机缩略图` : file.name}
                 onError={() => setFailed(true)}
               />
             )
@@ -1095,9 +1145,11 @@ function DevicePreview({
         </div>
         <p className="device-footnote">
           {raw
-            ? "DNG 只显示设备缩略图；导入时保存原始 DNG。"
+            ? `${rawFormat} 只显示设备缩略图；导入时保存相机提供的 ${rawFormat} 文件。`
             : file?.kind === "video"
-              ? "优先播放设备低分辨率预览，缺失时读取原视频；不自动转码。"
+              ? provider === "sony-zve10"
+                ? "读取相机提供的视频；原片或代理取决于相机发送设置，不自动转码。"
+                : "优先播放设备低分辨率预览，缺失时读取原视频；不自动转码。"
               : "预览按需读取设备中的照片。"}{" "}
           预览不代表原片已经保存。
         </p>

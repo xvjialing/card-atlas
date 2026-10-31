@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CircleHelp,
   FileImage,
+  FileText,
   Film,
   Folder,
   FolderOpen,
@@ -47,6 +48,7 @@ import {
 } from "@/components/ui/select";
 import { api, isDesktop } from "@/lib/api";
 import { DeviceImportPage } from "@/components/device-import-page";
+import { DiagnosticsPage } from "@/components/diagnostics-page";
 import { MediaThumbnail } from "@/components/media-thumbnail";
 import { ExportTaskDialog } from "@/components/export-task-dialog";
 import { exportProgress, exportTitle } from "@/lib/jobs";
@@ -90,9 +92,9 @@ export default function App() {
   const [result, setResult] = useState<FilePage>(noFiles);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [plan, setPlan] = useState<Plan | null>(null);
-  const [view, setView] = useState<"library" | "devices" | "history" | "help">(
-    "library",
-  );
+  const [view, setView] = useState<
+    "library" | "devices" | "history" | "help" | "diagnostics"
+  >("library");
   const [devicePending, setDevicePending] = useState(0);
   const [history, setHistory] = useState<Job[]>([]);
   const [notice, setNotice] = useState("");
@@ -488,6 +490,14 @@ export default function App() {
             )}
           </button>
           <button
+            className={`nav-item ${view === "diagnostics" ? "active" : ""}`}
+            onClick={() => setView("diagnostics")}
+            aria-current={view === "diagnostics" ? "page" : undefined}
+          >
+            <FileText size={19} />
+            诊断日志
+          </button>
+          <button
             className={`nav-item ${view === "help" ? "active" : ""}`}
             onClick={() => setView("help")}
             aria-current={view === "help" ? "page" : undefined}
@@ -524,7 +534,9 @@ export default function App() {
                 ? "设备导入"
                 : view === "history"
                   ? "导出记录"
-                  : "使用说明"}
+                  : view === "diagnostics"
+                    ? "诊断日志"
+                    : "使用说明"}
           </span>
           <div className="topbar-actions">
             {demo ? (
@@ -553,7 +565,9 @@ export default function App() {
                     ? "从设备到资料库，每一帧都妥善保存。"
                     : view === "history"
                       ? "每一次归档，都有迹可循。"
-                      : "开始整理你的影像。"}
+                      : view === "diagnostics"
+                        ? "离线留痕，问题有据可查。"
+                        : "开始整理你的影像。"}
               </h1>
               <p>
                 {view === "library"
@@ -562,7 +576,9 @@ export default function App() {
                     ? "连接摄影设备，挑选原始素材，按你的拍摄习惯归档。"
                     : view === "history"
                       ? "查看本次运行中的导出结果与失败明细。"
-                      : "选择、筛选、导出。三步完成照片与视频整理。"}
+                      : view === "diagnostics"
+                        ? "连接过程与运行异常保存在本机，随时查看，事后导出排查。"
+                        : "选择、筛选、导出。三步完成照片与视频整理。"}
               </p>
             </div>
             <span className="heading-icon">
@@ -619,6 +635,9 @@ export default function App() {
               : `找到 ${result.total} 个素材，已选择 ${selected.size} 个`}
           </div>
 
+          <div hidden={view !== "diagnostics"}>
+            <DiagnosticsPage active={view === "diagnostics"} demo={demo} />
+          </div>
           <div hidden={view !== "devices"}>
             <DeviceImportPage
               demo={demo}

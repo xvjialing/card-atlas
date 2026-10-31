@@ -56,7 +56,7 @@ func NewAdapter() *Adapter {
 		base, _ = os.UserConfigDir()
 		base = filepath.Join(base, "CardAtlas", "devices")
 	}
-	s := &Adapter{state: State{Phase: "disconnected", Message: "连接相机，开始导入原始素材", Media: []camera.Media{}, WiFiNetworks: []WiFiCandidate{}}, configFile: filepath.Join(base, "action6-identity.json"), client: transfer.Client(), logs: diagnostics.New(base)}
+	s := &Adapter{state: State{Phase: "disconnected", Message: "连接相机，开始导入原始素材", Media: []camera.Media{}, WiFiNetworks: []WiFiCandidate{}}, configFile: filepath.Join(base, "action6-identity.json"), client: transfer.Client(), logs: diagnostics.Shared(base)}
 	s.initConnectionActions()
 	var saved struct{ Identity string }
 	if b, err := os.ReadFile(s.configFile); err == nil {

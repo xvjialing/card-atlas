@@ -81,9 +81,9 @@ type Store struct {
 	fileLimit, totalLimit                              int64
 }
 
-var filePattern = regexp.MustCompile(`^osmo-bridge-(\d{4}-\d{2}-\d{2})-[0-9a-f]{12}-[0-9]{4,8}\.jsonl$`)
+var filePattern = regexp.MustCompile(`^(?:cardatlas|osmo-bridge)-(\d{4}-\d{2}-\d{2})-[0-9a-f]{12}-[0-9]{4,8}\.jsonl$`)
 var sensitiveKey = regexp.MustCompile(`(?i)password|passphrase|passwd|ssid|token|identity|authorization|cookie|secret|payload|body|args|filename|filepath|^path$|^device$|^data$`)
-var assignment = regexp.MustCompile(`(?i)(password|passphrase|passwd|ssid|token|identity|authorization|secret)\s*[=:]\s*("[^"]*"|'[^']*'|[^\s,;]+)`)
+var assignment = regexp.MustCompile(`(?i)(password|passphrase|passwd|ssid|token|identity|authorization|secret|密码)["']?\s*[=:：]\s*("[^"]*"|'[^']*'|[^\s,;]+)`)
 var uuid = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b|\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b`)
 var localPath = regexp.MustCompile(`(?:/Users/|/Volumes/|/private/|/tmp/|/home/|DCIM/|MISC/)[^\r\n]*`)
 var queryURL = regexp.MustCompile(`https?://[^\s"<>]+`)
@@ -213,7 +213,7 @@ func (s *Store) Record(level, component, event, message string, fields map[strin
 	if s.current == "" || s.day != day || s.currentBytes+int64(len(data)) > s.fileLimit {
 		s.day = day
 		s.part++
-		s.current = fmt.Sprintf("osmo-bridge-%s-%s-%04d.jsonl", day, s.session, s.part)
+		s.current = fmt.Sprintf("cardatlas-%s-%s-%04d.jsonl", day, s.session, s.part)
 		s.currentBytes = 0
 		if _, err = s.cleanLocked(false, int64(len(data))); err != nil {
 			s.lastError = "日志自动清理失败：" + s.redact(err.Error())
@@ -476,8 +476,13 @@ func (s *Store) Export(dst io.Writer) error {
 	if err != nil {
 		return err
 	}
-	metadata := map[string]any{"app": "CardAtlas", "version": "0.1.0", "wails": "v3.0.0-beta.34", "go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH, "exportedAt": time.Now().UTC().Format(time.RFC3339), "settings": settings, "scope": "本地应用诊断日志；无素材、密码、Wi-Fi 名称和配置文件"}
+	metadata := map[string]any{"app": "CardAtlas", "version": "0.1.0", "wails": "未知", "go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH, "exportedAt": time.Now().UTC().Format(time.RFC3339), "settings": settings, "scope": "本地应用诊断日志；无素材、密码、Wi-Fi 名称和配置文件"}
 	if build, ok := debug.ReadBuildInfo(); ok {
+		for _, dependency := range build.Deps {
+			if dependency.Path == "github.com/wailsapp/wails/v3" {
+				metadata["wails"] = dependency.Version
+			}
+		}
 		for _, setting := range build.Settings {
 			if setting.Key == "vcs.revision" || setting.Key == "vcs.modified" {
 				metadata[setting.Key] = setting.Value

@@ -43,16 +43,26 @@ export default async function runDeviceBrowserChecks(
     ),
     "无效密码不会调用连接接口",
   );
-  await page.getByLabel("相机 Wi-Fi 密码", { exact: true }).fill("TestPass42");
+  await page.getByLabel("设备 Wi-Fi 密码", { exact: true }).fill("TestPass42");
   await page.getByRole("button", { name: "显示密码", exact: true }).click();
   assert(
     (await page
-      .getByLabel("相机 Wi-Fi 密码", { exact: true })
+      .getByLabel("设备 Wi-Fi 密码", { exact: true })
       .getAttribute("type")) === "text",
     "密码显隐可操作",
   );
   await page.getByRole("button", { name: "隐藏密码", exact: true }).click();
   await page.getByRole("button", { name: "连接此热点", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "即将切换 Mac 的 Wi-Fi", exact: true })
+    .waitFor();
+  assert(
+    await page
+      .getByRole("button", { name: "不再提醒", exact: true })
+      .isVisible(),
+    "切换 Wi-Fi 前弹出提醒且提供不再提醒",
+  );
+  await page.getByRole("button", { name: "继续连接", exact: true }).click();
   await page.getByRole("heading", { name: "设备素材", exact: true }).waitFor();
   const views = page.getByRole("group", { name: "素材展示方式" });
   const types = page.getByRole("group", { name: "设备素材类型" });
@@ -184,12 +194,11 @@ export default async function runDeviceBrowserChecks(
   await page.getByRole("button", { name: "选择设备素材导入文件夹" }).click();
   await page.getByRole("combobox", { name: "目录组织方式" }).click();
   await page.keyboard.press("Escape");
-  assert(
-    await page
-      .getByRole("combobox", { name: "目录组织方式" })
-      .evaluate((el) => el === document.activeElement),
-    "组织方式下拉菜单 Escape 归还焦点",
+  await page.waitForFunction(
+    () => document.activeElement?.id === "device-layout",
+    { timeout: 5000 },
   );
+  assert(true, "组织方式下拉菜单 Escape 归还焦点");
   await page.getByRole("button", { name: "预览导入", exact: true }).click();
   assert(
     await page
@@ -377,6 +386,134 @@ export default async function runDeviceBrowserChecks(
     .locator("[data-slot=dialog-footer]")
     .getByRole("button", { name: "关闭", exact: true })
     .click();
+
+  // 多设备：先真正断开，再切换设备并核对各自的连接入口。状态经轮询更新，全部使用显式等待。
+  await page.getByRole("button", { name: "断开", exact: true }).click();
+  await page.getByRole("button", { name: "暂停并断开", exact: true }).click();
+  await page.getByText("设备已断开", { exact: false }).waitFor();
+  const providerRow = page.getByRole("radiogroup", { name: "选择导入设备" });
+  await providerRow.waitFor({ state: "visible", timeout: 8000 });
+  assert(await providerRow.isVisible(), "未连接时展示设备切换列表");
+  await providerRow.getByRole("radio", { name: /Sony ZV-E10/ }).click();
+  await page
+    .getByRole("heading", { name: "Sony ZV-E10", exact: true })
+    .waitFor({ timeout: 8000 });
+  assert(true, "切换后头部显示 Sony ZV-E10");
+  assert(
+    await page
+      .getByText("相机选择发送素材，扫码或确认后加入热点", { exact: true })
+      .isVisible(),
+    "Sony 欢迎流程与实际连接方式一致",
+  );
+  assert(
+    (await page
+      .getByText("JPEG / RAW / 视频（以相机提供为准）", { exact: true })
+      .isVisible()) &&
+      !(await page
+        .getByText("本次支持 DJI Osmo Action 6。", { exact: false })
+        .count()),
+    "Sony 欢迎页显示当前设备能力",
+  );
+  await page.getByRole("button", { name: "连接设备", exact: true }).click();
+  await page
+    .getByRole("button", { name: "选择二维码照片", exact: true })
+    .waitFor({ timeout: 8000 });
+  assert(true, "ZV-E10 提供二维码照片导入入口");
+  assert(
+    await page
+      .getByText(
+        "在相机回放界面进入「发送到智能手机」并选择素材，屏幕会显示二维码。",
+        { exact: false },
+      )
+      .isVisible(),
+    "Sony 导入指引使用发送素材模式",
+  );
+  assert(
+    await page
+      .getByText(
+        "JPEG 尺寸、RAW+JPEG 和视频代理/原片请在相机发送设置中选择。",
+        { exact: false },
+      )
+      .isVisible(),
+    "Sony 界面说明相机控制发送内容与质量",
+  );
+  assert(
+    (await page
+      .getByRole("button", { name: "搜索附近相机", exact: true })
+      .count()) === 0,
+    "Sony 素材连接不显示蓝牙配对入口",
+  );
+  await page.getByLabel("二维码照片文件", { exact: true }).setInputFiles({
+    name: "broken.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("invalid image"),
+  });
+  await page
+    .getByText("无法读取所选照片，请使用 JPG 或 PNG 格式的二维码照片。", {
+      exact: true,
+    })
+    .waitFor();
+  assert(true, "损坏二维码照片显示可恢复错误");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert(
+    await page.getByRole("dialog").evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return (
+        r.left >= 0 &&
+        r.right <= innerWidth &&
+        r.top >= 0 &&
+        r.bottom <= innerHeight &&
+        document.documentElement.scrollWidth <= innerWidth
+      );
+    }),
+    "390px Sony 二维码及错误状态位于视口内",
+  );
+  await page.screenshot({
+    path: `${root}/work/sony-connection-offline-mobile.png`,
+  });
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() =>
+    document.activeElement?.textContent?.includes("连接设备"),
+  );
+  assert(true, "Sony 连接弹窗 Escape 归还焦点");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.getByRole("button", { name: "连接设备", exact: true }).click();
+  // 模拟二维码导入后的热点选择：密码已由二维码携带，界面应明确提示无需输入。
+  await page.getByRole("button", { name: "扫描附近热点", exact: true }).click();
+  await page.getByRole("button", { name: /DIRECT-e6:ZV-E10/ }).click();
+  await page
+    .getByText("已从二维码照片读取该热点的密码", { exact: false })
+    .waitFor({ timeout: 8000 });
+  assert(
+    await page
+      .getByRole("button", { name: "使用二维码中的密码连接", exact: true })
+      .isVisible(),
+    "二维码密码就绪时提示可直接连接",
+  );
+  await page.keyboard.press("Escape");
+  await providerRow.getByRole("radio", { name: /DJI Mini 5 Pro/ }).click();
+  await page
+    .getByRole("heading", { name: "DJI Mini 5 Pro", exact: true })
+    .waitFor({ timeout: 8000 });
+  assert(true, "切换后头部显示 DJI Mini 5 Pro");
+  await page.getByRole("button", { name: "连接设备", exact: true }).click();
+  await page
+    .getByRole("button", { name: "搜索附近无人机", exact: true })
+    .waitFor({ timeout: 8000 });
+  assert(true, "Mini 5 Pro 提供蓝牙授权入口");
+  await page
+    .getByRole("button", { name: "扫描附近热点", exact: true })
+    .waitFor({ timeout: 8000 });
+  assert(true, "Mini 5 Pro 保留热点扫描连接");
+  await page.keyboard.press("Escape");
+  await providerRow.getByRole("radio", { name: /DJI Osmo Action 6/ }).click();
+  await page
+    .getByRole("heading", { name: "DJI Osmo Action 6", exact: true })
+    .waitFor({ timeout: 8000 });
+  assert(true, "可切回 Action 6");
+
   await writeReport({
     checks,
     source: "浏览器模拟接口，仅验证 UI；不代表实机连接或真实文件传输。",

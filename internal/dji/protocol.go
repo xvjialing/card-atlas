@@ -89,8 +89,18 @@ func (r *Reader) Feed(data []byte) []Message {
 }
 
 func Pairing(identity string) Message {
+	return pairingWithToken(identity, "osmo")
+}
+
+// AircraftPairing 使用 DJI Fly 的飞行器配对标识；相机标识虽能授权，却不能完成无人机快传。
+func AircraftPairing(identity string) Message {
+	return pairingWithToken(identity, "DJI FLY")
+}
+
+func pairingWithToken(identity, token string) Message {
 	p := append([]byte{byte(len(identity))}, []byte(identity)...)
-	p = append(p, 4, 'o', 's', 'm', 'o')
+	p = append(p, byte(len(token)))
+	p = append(p, token...)
 	return Message{2, 7, 0x8092, 0x40, 7, 0x45, p}
 }
 

@@ -3,9 +3,11 @@ module cardatlas
 go 1.27.0
 
 require (
+	github.com/knallli/alpha2go v0.3.0
+	github.com/makiuchi-d/gozxing v0.1.1
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/wailsapp/wails/v3 v3.0.0-beta.29
-	golang.org/x/sys v0.46.0
+	golang.org/x/sys v0.49.0
 	tinygo.org/x/bluetooth v0.16.0
 )
 
@@ -23,6 +25,9 @@ require (
 	github.com/soypat/seqs v0.0.0-20260125140838-2c1c6b1bd69e // indirect
 	github.com/tinygo-org/cbgo v0.0.4 // indirect
 	github.com/tinygo-org/pio v0.3.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 // indirect
+	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	tinygo.org/x/espradio v0.3.0 // indirect
 )

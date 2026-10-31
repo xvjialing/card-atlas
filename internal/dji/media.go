@@ -22,6 +22,9 @@ type Media struct {
 	Duration int    `json:"duration"`
 	Kind     string `json:"kind"`
 	Date     string `json:"date"`
+	// 无人机目录可提供原文件中嵌入 JPEG 的范围，不必读取整段视频或 RAW。
+	ThumbnailOffset int64 `json:"thumbnailOffset,omitempty"`
+	ThumbnailSize   int64 `json:"thumbnailSize,omitempty"`
 }
 
 func SafePath(p string) bool {

@@ -17,11 +17,71 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"net/netip"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
+
+// WiFiSocketControl 将设备连接固定到同一 Wi-Fi 接口，并为 UDP 显式指定组播出口。
+// 仅绑定源 IP 不会替代 macOS 的组播接口选择；有线网卡仍可保留默认路由。
+func WiFiSocketControl(snapshot WiFiSnapshot, ip netip.Addr) (func(string, string, syscall.RawConn) error, error) {
+	if !ip.Is4() || snapshot.Interface == "" {
+		return nil, errors.New("相机 Wi-Fi 接口或 IPv4 地址无效")
+	}
+	iface, err := net.InterfaceByName(snapshot.Interface)
+	if err != nil {
+		return nil, err
+	}
+	return func(network, _ string, raw syscall.RawConn) error {
+		var socketErr error
+		if err := raw.Control(func(fd uintptr) {
+			socketErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IP, unix.IP_BOUND_IF, iface.Index)
+			if socketErr == nil && strings.HasPrefix(network, "udp") {
+				socketErr = unix.SetsockoptInet4Addr(int(fd), unix.IPPROTO_IP, unix.IP_MULTICAST_IF, ip.As4())
+			}
+		}); err != nil {
+			return err
+		}
+		return socketErr
+	}, nil
+}
+
+// CameraWiFiDialer 将素材 UDP 与 HTTP 都固定到 Wi-Fi 接口，不修改全局网络服务顺序或路由。
+func CameraWiFiDialer(network string, localPort int) (*net.Dialer, error) {
+	snapshot := CurrentWiFi()
+	ip, err := cameraClientIP(snapshot)
+	if err != nil {
+		return nil, err
+	}
+	iface, err := net.InterfaceByName(snapshot.Interface)
+	if err != nil {
+		return nil, err
+	}
+	d := &net.Dialer{Timeout: 3 * time.Second}
+	switch network {
+	case "udp4":
+		d.LocalAddr = &net.UDPAddr{IP: net.IP(ip.AsSlice()), Port: localPort}
+	case "tcp4":
+		d.LocalAddr = &net.TCPAddr{IP: net.IP(ip.AsSlice()), Port: localPort}
+	default:
+		return nil, errors.New("设备网络只支持 IPv4 UDP/TCP")
+	}
+	d.Control = func(_, _ string, raw syscall.RawConn) error {
+		var socketErr error
+		if err := raw.Control(func(fd uintptr) {
+			socketErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IP, unix.IP_BOUND_IF, iface.Index)
+		}); err != nil {
+			return err
+		}
+		return socketErr
+	}
+	return d, nil
+}
 
 func CurrentSSID() string {
 	s := C.ob_wifi_ssid()
@@ -59,9 +119,7 @@ func CurrentWiFi() WiFiSnapshot {
 }
 
 func WaitCameraWiFi(ctx context.Context, expected string) error {
-	wait, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-	return waitCameraNetwork(wait, expected, CurrentWiFi, 250*time.Millisecond)
+	return WaitDeviceWiFi(ctx, expected, cameraSubnet)
 }
 func JoinWiFi(ssid, password string) error {
 	s, p := C.CString(ssid), C.CString(password)

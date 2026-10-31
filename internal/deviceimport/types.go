@@ -32,6 +32,8 @@ type Network struct {
 	Likely           bool   `json:"likely"`
 	Reason           string `json:"reason"`
 	HasSavedPassword bool   `json:"hasSavedPassword"`
+	// HasProvisionedPassword 表示该热点的密码已由二维码照片读取，加入时可留空。
+	HasProvisionedPassword bool `json:"hasProvisionedPassword"`
 }
 type Media struct {
 	ID            string `json:"id"`
@@ -62,12 +64,14 @@ type Session struct {
 }
 
 // ConnectionRequest 仅供设备适配器解释；通用任务层不依赖 DJI 协议。
+// Photo 携带 base64 数据 URL 形式的二维码照片，仅供支持扫码配对的适配器解码。
 type ConnectionRequest struct {
 	Action   string `json:"action"`
 	DeviceID string `json:"deviceId"`
 	SSID     string `json:"ssid"`
 	Password string `json:"password"`
 	UseSaved bool   `json:"useSaved"`
+	Photo    string `json:"photo"`
 }
 type Progress struct {
 	Bytes int64   `json:"bytes"`

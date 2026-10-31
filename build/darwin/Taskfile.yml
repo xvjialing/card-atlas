@@ -165,6 +165,9 @@ tasks:
       - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/Assets.car"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      - cp THIRD_PARTY_NOTICES.md "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/THIRD_PARTY_NOTICES.md"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/licenses"
+      - cp -f licenses/*.txt "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/licenses/"
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 
   codesign:adhoc:

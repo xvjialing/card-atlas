@@ -3,6 +3,8 @@ package main
 import (
 	"cardatlas/internal/deviceimport"
 	"cardatlas/internal/devices/action6"
+	"cardatlas/internal/devices/mini5pro"
+	"cardatlas/internal/devices/zve10"
 	"errors"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"net/http"
@@ -14,9 +16,11 @@ import (
 
 // DeviceService 只暴露通用设备与导入操作；硬件协议留在适配器内。
 type DeviceService struct {
-	manager *deviceimport.Manager
-	action6 *action6.Adapter
-	app     *application.App
+	manager  *deviceimport.Manager
+	action6  *action6.Adapter
+	mini5pro *mini5pro.Adapter
+	zve10    *zve10.Adapter
+	app      *application.App
 }
 
 func NewDeviceService() *DeviceService {
@@ -26,7 +30,9 @@ func NewDeviceService() *DeviceService {
 		base = filepath.Join(base, "CardAtlas", "devices")
 	}
 	p := action6.NewAdapter()
-	return &DeviceService{manager: deviceimport.NewManager(base, p), action6: p}
+	m := mini5pro.NewAdapter()
+	z := zve10.NewAdapter()
+	return &DeviceService{manager: deviceimport.NewManager(base, p, m, z), action6: p, mini5pro: m, zve10: z}
 }
 func (s *DeviceService) GetState() deviceimport.State              { return s.manager.GetState() }
 func (s *DeviceService) GetLibrary() ([]deviceimport.Media, error) { return s.manager.Library() }
@@ -66,9 +72,15 @@ func (s *DeviceService) RevealImport(id string) error {
 }
 func (s *DeviceService) ServiceShutdown() error { return s.manager.Disconnect() }
 func (s *DeviceService) serveMedia(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("provider") != "dji-action6" {
+	// 预览路由按设备分发；前端只提交素材 ID 与会话令牌，不提交设备地址或路径。
+	switch r.URL.Query().Get("provider") {
+	case "dji-action6":
+		s.action6.ServeHTTP(w, r)
+	case "dji-mini5pro":
+		s.mini5pro.ServeHTTP(w, r)
+	case "sony-zve10":
+		s.zve10.ServeHTTP(w, r)
+	default:
 		http.NotFound(w, r)
-		return
 	}
-	s.action6.ServeHTTP(w, r)
 }

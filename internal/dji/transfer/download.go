@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -35,7 +36,12 @@ type Result struct {
 
 // Client 禁止代理和跨地址重定向，确保素材只从当前相机直连读取。
 func Client() *http.Client {
-	return &http.Client{Transport: &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, ResponseHeaderTimeout: 8 * time.Second, DisableCompression: true}, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return errors.New("不允许相机下载重定向") }}
+	return ClientWithDialer(&net.Dialer{Timeout: 5 * time.Second})
+}
+
+// ClientWithDialer 允许适配器把请求固定到实际设备接口，同时保留直连和禁止重定向约束。
+func ClientWithDialer(dialer *net.Dialer) *http.Client {
+	return &http.Client{Transport: &http.Transport{Proxy: nil, DialContext: dialer.DialContext, ResponseHeaderTimeout: 8 * time.Second, DisableCompression: true}, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return errors.New("不允许相机下载重定向") }}
 }
 
 type identity struct {
@@ -56,12 +62,24 @@ func Download(ctx context.Context, client *http.Client, host, device, root strin
 	return DownloadTo(ctx, client, host, device, root, relative, m, progress)
 }
 
-// DownloadTo 接收通用导入规划生成的相对路径，协议层只负责安全传输。
+// DownloadTo 接收通用导入规划生成的相对路径，按 DJI 相机地址约定构造下载地址。
 func DownloadTo(ctx context.Context, client *http.Client, host, device, root, relative string, m camera.Media, progress func(Progress)) (Result, error) {
+	if !camera.SafePath(m.Path) || m.Storage < 0 || m.Storage > 1 {
+		return Result{}, errors.New("无效的下载位置或相机文件路径")
+	}
+	return DownloadURL(ctx, client, camera.MediaURL(host, m.Storage, m.Path), device, root, relative, m, progress)
+}
+
+// DownloadURL 从适配器给定的设备直连地址下载原文件；地址只来自适配器解释的设备响应。
+func DownloadURL(ctx context.Context, client *http.Client, rawURL, device, root, relative string, m camera.Media, progress func(Progress)) (Result, error) {
 	trace := diagnostics.From(ctx)
 	var result Result
-	if !filepath.IsAbs(root) || !filepath.IsLocal(relative) || !camera.SafePath(m.Path) || m.Storage < 0 || m.Storage > 1 {
+	if !filepath.IsAbs(root) || !filepath.IsLocal(relative) {
 		return result, errors.New("无效的下载位置或相机文件路径")
+	}
+	parsed, err := neturl.Parse(rawURL)
+	if err != nil || parsed.Scheme != "http" || parsed.Host == "" || parsed.User != nil {
+		return result, errors.New("设备下载地址无效")
 	}
 	if err := os.MkdirAll(root, 0755); err != nil {
 		return result, err
@@ -117,7 +135,7 @@ func DownloadTo(ctx context.Context, client *http.Client, host, device, root, re
 			return result, e
 		}
 		offset := stat.Size()
-		req, e := http.NewRequestWithContext(ctx, http.MethodGet, camera.MediaURL(host, m.Storage, m.Path), nil)
+		req, e := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 		if e != nil {
 			return result, e
 		}

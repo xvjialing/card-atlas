@@ -13,6 +13,24 @@ export const emptyDeviceState = {
         { id: "0", name: "存储卡" },
       ],
     },
+    {
+      id: "dji-mini5pro",
+      name: "DJI Mini 5 Pro",
+      brand: "DJI",
+      transport: "Wi-Fi 热点传输",
+      available: true,
+      compatibility: "已接入，待实机验证",
+      storages: [{ id: "0", name: "存储卡" }],
+    },
+    {
+      id: "sony-zve10",
+      name: "Sony ZV-E10",
+      brand: "Sony",
+      transport: "Wi-Fi 热点传输",
+      available: true,
+      compatibility: "已接入，待实机验证",
+      storages: [{ id: "0", name: "存储卡" }],
+    },
   ],
   activeProvider: "dji-action6",
   tasks: [],
@@ -45,6 +63,66 @@ const media = Array.from({ length: 65 }, (_, i) => ({
   thumbnail: false,
 }));
 const clone = (x) => structuredClone(x);
+const disconnected = () => ({
+  sessionToken: "fixture-session-" + Math.random().toString(36).slice(2, 8),
+  deviceId: "",
+  deviceName: "",
+  phase: "disconnected",
+  message: "连接设备，开始导入原始素材",
+  warning: "",
+  ssid: "",
+  busy: false,
+  revision: 0,
+  wifiNetworks: [],
+});
+const providerNetworks = (provider) => {
+  if (provider === "sony-zve10")
+    return [
+      {
+        ssid: "DIRECT-e6:ZV-E10",
+        rssi: -44,
+        channel: 6,
+        security: "WPA2",
+        supported: true,
+        likely: true,
+        reason: "与二维码照片读取的热点名称一致",
+        hasSavedPassword: false,
+        // 模拟二维码导入后已携带密码的状态。
+        hasProvisionedPassword: true,
+      },
+    ];
+  if (provider === "dji-mini5pro")
+    return [
+      {
+        ssid: "DJI-Mini5Pro-测试",
+        rssi: -46,
+        channel: 149,
+        security: "WPA2",
+        supported: true,
+        likely: true,
+        reason: "名称包含设备特征，需由你确认",
+        hasSavedPassword: false,
+      },
+    ];
+  return [
+    {
+      ssid: "测试相机热点",
+      rssi: -48,
+      channel: 149,
+      security: "WPA2",
+      supported: true,
+      likely: true,
+      reason: "测试热点",
+      hasSavedPassword: false,
+    },
+  ];
+};
+const providerName = (provider) =>
+  ({
+    "dji-action6": "DJI Osmo Action 6 测试设备",
+    "dji-mini5pro": "DJI Mini 5 Pro",
+    "sony-zve10": "Sony ZV-E10",
+  })[provider] || "测试设备";
 const fixture = (window.__deviceFixture = {
   state: clone(emptyDeviceState),
   media,
@@ -55,34 +133,44 @@ const fixture = (window.__deviceFixture = {
 export const devicesAPI = {
   state: async () => clone(fixture.state),
   library: async () => clone(media),
+  selectProvider: async (id) => {
+    fixture.calls.push("select:" + id);
+    fixture.state.activeProvider = id;
+    fixture.state.connection = disconnected();
+  },
   discover: async () => [
-    { id: "fixture-camera", name: "DJI Osmo Action 6 测试设备", rssi: -48 },
+    {
+      id: "fixture-camera",
+      name: providerName(fixture.state.activeProvider),
+      rssi: -48,
+    },
   ],
   connect: async (r) => {
     fixture.calls.push(r.action);
+    const provider = fixture.state.activeProvider;
     if (r.action === "prepare" || r.action === "scan_wifi") {
       Object.assign(fixture.state.connection, {
         phase: "choosing_wifi",
-        deviceName: "DJI Osmo Action 6 测试设备",
-        message: "请选择相机热点，确认后才会切换 Wi-Fi",
-        wifiNetworks: [
-          {
-            ssid: "测试相机热点",
-            rssi: -48,
-            channel: 149,
-            security: "WPA2",
-            supported: true,
-            likely: true,
-            reason: "测试热点",
-            hasSavedPassword: false,
-          },
-        ],
+        deviceName: providerName(provider),
+        message:
+          provider === "sony-zve10" && fixture.calls.at(-2) === "import_qr"
+            ? "已从二维码照片读取“DIRECT-e6:ZV-E10”的连接信息，请选择该热点并确认加入"
+            : "请选择设备热点，确认后才会切换 Wi-Fi",
+        wifiNetworks: providerNetworks(provider),
+      });
+    } else if (r.action === "import_qr") {
+      Object.assign(fixture.state.connection, {
+        phase: "choosing_wifi",
+        deviceName: providerName(provider),
+        message:
+          "已从二维码照片读取“DIRECT-e6:ZV-E10”的连接信息，请选择该热点并确认加入",
+        wifiNetworks: providerNetworks(provider),
       });
     } else if (r.action === "join_wifi" || r.action === "manual") {
       Object.assign(fixture.state.connection, {
         phase: "connected",
         revision: fixture.state.connection.revision + 1,
-        ssid: "测试相机热点",
+        ssid: fixture.state.connection.wifiNetworks[0]?.ssid || "测试相机热点",
         message: "已连接，可选择素材导入",
       });
     }
