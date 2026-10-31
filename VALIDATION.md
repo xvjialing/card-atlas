@@ -1,5 +1,16 @@
 # 当前版本验证
 
+## 设备素材预览弹窗离线优化 · 2026-10-31
+
+- 按用户截图优化预览显示；用户已明确相机离线，本轮未扫描、加入热点或连接相机，也未启动真机探测入口。
+- 抽出 `device-preview-dialog.tsx` 作为设备预览统一所有者，复用既有 Radix Dialog、Button 和 Badge。固定媒体画布 + 桌面信息侧栏，窄屏上下布局；加载、成功、失败和重试的媒体占位保持不变。RAW 缩略图默认适应画布放大，显示实际尺寸与质量说明，支持真实像素尺寸及键盘滚动；视频预定宽高，加载时仍提供用户手势播放入口。
+- 新增读取与缓冲反馈、20 秒超时恢复、重新加载及断线返回指引；关闭、断线和会话变化释放旧视频资源。预览绑定选择时的会话上下文，避免新会话读取旧选择；保留现有会话变化关闭预览规则。修复 React StrictMode 重复挂载时资源被提前释放的问题。
+- 离线浏览器新增 27 项通过，脚本为 `frontend/tests/device-preview-browser-check.mjs`；覆盖 160×120 缩略图、竖图与 1:1 滚动、视频前后几何、失败重试、缓冲暂停、超时与过期响应、会话和断线、焦点/Escape、390px 长内容、900×650 矮窗口及 reduced-motion。使用纯本地 SVG 与画布生成的 WebM，无页面脚本错误，模拟接口的扫描、连接、导入调用均为 0。既有设备浏览器验收流程也通过。
+- `pnpm typecheck`、前端 10 项单元测试、生产构建、Prettier 与差异检查通过。严格 UI 审计 0 错误、0 警告；DESIGN.md 官方缓存 CLI lint 0 错误，保留既有 9 条 orphaned-token 提醒。
+- `go test -race ./...` 除既有 `TestNativeVideoThumbnail` 外通过；该测试仍因本机 ffmpeg 缺少 `libssl.4.dylib` 无法生成测试视频。显式排除该测试后全量回归通过，未修改系统依赖或后端测试。
+- 模拟截图与报告位于 `work/device-preview-*-desktop.png`、`work/device-preview-mobile.png`、`work/device-preview-browser-results.json` 和 `work/device-preview-ui-audit.json`。本轮为离线界面与恢复行为验证，不替代真实相机媒体加载复测。
+- `pnpm package` 完成并更新 `bin/cardatlas.app`，本地签名严格验证通过；已清除浏览器测试拦截并停止本轮启动的预览服务，未启动或重启原生客户端。
+
 ## Sony ZV-E10 固件 2.01 PTP/IP 真机调试 · 2026-10-31
 
 - 真机确认：UPnP 描述 HTTP 200，名称为 SonyDigitalMediaServer / SonyImagingDevice；SOAP 控制和目录请求均 404。DigitalImaging 能力明确启用 PTP/IP v3 素材服务。新增按能力选择 PTP/IP 的生产路径，而非继续放宽 SOAP 错误。

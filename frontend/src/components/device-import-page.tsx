@@ -45,11 +45,11 @@ import {
 import { captureDate, sortByCaptureDate } from "@/lib/media-timeline";
 import { mediaSelectionState, setMediaSelection } from "@/lib/media-selection";
 import { DeviceConnectionDialog } from "./device-connection-dialog";
+import { DevicePreviewDialog } from "./device-preview-dialog";
 import {
   devicesAPI,
   emptyDeviceState,
   errorMessage,
-  deviceMediaURL,
   type Media,
   type Plan,
 } from "@/lib/devices";
@@ -102,6 +102,7 @@ export function DeviceImportPage({
   const [taskView, setTaskView] = useState<ImportTaskView>("history");
   const tasksButton = useRef<HTMLButtonElement>(null);
   const previewTrigger = useRef<HTMLButtonElement | null>(null);
+  const previewSession = useRef("");
   const [destination, setDestination] = useState("");
   const [layout, setLayout] = useState("date");
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -754,6 +755,7 @@ export function DeviceImportPage({
               onToggle={toggle}
               onPreview={(file, trigger) => {
                 previewTrigger.current = trigger;
+                previewSession.current = connection.sessionToken;
                 setPreview(file);
               }}
             />
@@ -1067,94 +1069,16 @@ export function DeviceImportPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <DevicePreview
+      <DevicePreviewDialog
         file={preview}
         provider={state.activeProvider}
-        session={connection.sessionToken}
-        connected={connected}
+        session={previewSession.current}
+        connected={
+          connected && previewSession.current === connection.sessionToken
+        }
         onClose={() => setPreview(null)}
         returnFocus={previewTrigger}
       />
     </div>
-  );
-}
-
-function DevicePreview({
-  file,
-  provider,
-  connected,
-  onClose,
-  session,
-  returnFocus,
-}: {
-  file: Media | null;
-  provider: string;
-  session: string;
-  connected: boolean;
-  onClose: () => void;
-  returnFocus: { current: HTMLButtonElement | null };
-}) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [file?.id]);
-  const rawFormat = file?.name.match(/\.(dng|arw)$/i)?.[1].toUpperCase();
-  const raw = Boolean(rawFormat);
-  return (
-    <Dialog
-      open={Boolean(file)}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DialogContent
-        className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto"
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          returnFocus.current?.focus();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle className="break-all">{file?.name}</DialogTitle>
-          <DialogDescription>
-            {file?.storageName} · {file?.date || "日期未知"} · 清单容量{" "}
-            {bytes(file?.size || 0)}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="device-preview">
-          {file && connected && !failed ? (
-            file.kind === "video" ? (
-              <video
-                controls
-                preload="metadata"
-                src={deviceMediaURL(provider, file.id, true, session)}
-                onError={() => setFailed(true)}
-              />
-            ) : (
-              <img
-                src={deviceMediaURL(provider, file.id, !raw, session)}
-                alt={raw ? `${rawFormat} 相机缩略图` : file.name}
-                onError={() => setFailed(true)}
-              />
-            )
-          ) : (
-            <p>
-              {connected
-                ? "无法预览此素材，请导入原文件后使用本机应用查看。"
-                : "设备连接已中断，重新连接后可继续预览。"}
-            </p>
-          )}
-        </div>
-        <p className="device-footnote">
-          {raw
-            ? `${rawFormat} 只显示设备缩略图；导入时保存相机提供的 ${rawFormat} 文件。`
-            : file?.kind === "video"
-              ? provider === "sony-zve10"
-                ? "读取相机提供的视频；原片或代理取决于相机发送设置，不自动转码。"
-                : "优先播放设备低分辨率预览，缺失时读取原视频；不自动转码。"
-              : "预览按需读取设备中的照片。"}{" "}
-          预览不代表原片已经保存。
-        </p>
-        <p className="device-source-path">{file?.path}</p>
-      </DialogContent>
-    </Dialog>
   );
 }
